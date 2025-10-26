@@ -1,0 +1,82 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using DoAn_web.Models;
+
+namespace DoAn_web.Controllers
+{
+    public class CartController : Controller
+    {
+        private const string SessionCartKey = "CartSession_v1";
+
+        // Helper: get or create cart (list of CartItem) in session
+        private List<CartItem> GetCart()
+        {
+            var cart = Session[SessionCartKey] as List<CartItem>;
+            if (cart == null)
+            {
+                cart = new List<CartItem>();
+                Session[SessionCartKey] = cart;
+            }
+            return cart;
+        }
+
+        // View cart
+        public ActionResult Index()
+        {
+            var cart = GetCart();
+            ViewBag.GrandTotal = cart.Sum(i => i.Total);
+            return View(cart);
+        }
+
+        // Add item (POST recommended but we support GET for simple demo)
+        [HttpPost]
+        public ActionResult Add(int productId, string name, decimal price, int quantity = 1)
+        {
+            var cart = GetCart();
+            var existing = cart.FirstOrDefault(x => x.ProductId == productId);
+            if (existing != null)
+            {
+                existing.Quantity += quantity;
+            }
+            else
+            {
+                cart.Add(new CartItem { ProductId = productId, Name = name, Price = price, Quantity = quantity });
+            }
+            Session[SessionCartKey] = cart;
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public ActionResult UpdateQuantity(int productId, int quantity)
+        {
+            var cart = GetCart();
+            var item = cart.FirstOrDefault(x => x.ProductId == productId);
+            if (item != null)
+            {
+                if (quantity <= 0) cart.Remove(item);
+                else item.Quantity = quantity;
+            }
+            Session[SessionCartKey] = cart;
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public ActionResult Remove(int productId)
+        {
+            var cart = GetCart();
+            var item = cart.FirstOrDefault(x => x.ProductId == productId);
+            if (item != null) cart.Remove(item);
+            Session[SessionCartKey] = cart;
+            return RedirectToAction("Index");
+        }
+
+        public ActionResult Clear()
+        {
+            Session.Remove(SessionCartKey);
+            return RedirectToAction("Index");
+        }
+    }
+}
